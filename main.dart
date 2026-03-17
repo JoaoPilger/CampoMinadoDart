@@ -2,7 +2,13 @@ import 'dart:math';
 import 'dart:io';
 
 void main(){
-  Tabuleiro tabuleiro = Tabuleiro(12);
+  print("Dificuldade:\n1 - Fácil\n2 - Médio\n3 - Difícil\n4 - Custom\nEscolha uma opção válida: ");
+  String? escolha = stdin.readLineSync();
+  int? escolhaParse = int.tryParse(escolha ?? '0');
+
+  int tamanhoTab = escolhaParse ?? 0;
+  
+  Tabuleiro tabuleiro = Tabuleiro(tamanhoTab, 0);
 
   tabuleiro.printTabuleiro();
 }
@@ -28,11 +34,36 @@ class Casa{
 }
 
 class Tabuleiro{
-  final int tamanho;
+  int tamanho;
 
   List<List<Casa>> tabuleiro = [];
 
-  Tabuleiro(this.tamanho){
+  Tabuleiro(escolhaParse, this.tamanho){
+    if ( escolhaParse != null) {
+      if (escolhaParse == 1) {
+        tamanho = 8;
+
+      }else if(escolhaParse == 2){
+        tamanho = 12;
+
+      }else if(escolhaParse == 3){
+        tamanho = 16;
+
+      }else if(escolhaParse == 4){
+        print("Escolha um tamanho de tabuleiro. Ex: 16 (vai ser um tabuleiro 16x16):");
+        String? escolha2 = stdin.readLineSync();
+
+        int? escolhaParse2 = int.tryParse(escolha2 ?? '');
+        if (escolhaParse2 != null) {
+
+          tamanho = escolhaParse2;
+        }
+      }
+    }else{
+      print("Valor inválido, você perdeu!");
+      exit(1);
+    }
+
     final int quantBomba = ((tamanho*tamanho)*0.30)~/1;
 
     var random = Random();
