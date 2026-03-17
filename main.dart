@@ -102,9 +102,19 @@ class Tabuleiro {
       case 2: tamanho = 12; break;
       case 3: tamanho = 16; break;
       case 4:
-        stdout.write("Digite o tamanho personalizado (ex: 10): ");
-        tamanho = int.tryParse(stdin.readLineSync() ?? '8') ?? 8;
-        break;
+        while (true) {
+          stdout.write("Digite o tamanho personalizado (máx 24): ");
+          tamanho = int.tryParse(stdin.readLineSync() ?? '8') ?? 8;
+
+          if (tamanho > 0 && tamanho <= 24) {
+            // Se o tamanho for válido, sai do loop while
+            break; 
+          } else {
+            print("Erro: O tamanho deve ser entre 1 e 24. Tente novamente.");
+          }
+        }
+        // O código continua aqui após um valor válido ser inserido
+        break; // Break do Switch Case
       default:
         print("Opção inválida. Iniciando no Fácil.");
         tamanho = 8;
