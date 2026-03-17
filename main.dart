@@ -1,8 +1,13 @@
 import 'dart:math';
 import 'dart:io';
 
-void main(){
-  Tabuleiro tabuleiro = Tabuleiro(12);
+void main() {
+  print("Dificuldade:\n1 - Fácil\n2 - Médio\n3 - Difícil\n4 - Custom\nEscolha uma opção válida: ");
+  String? escolha = stdin.readLineSync();
+  int? escolhaParse = int.tryParse(escolha ?? '0');
+
+  // Inicializa o tabuleiro com a escolha do usuário
+  Tabuleiro tabuleiro = Tabuleiro(escolhaParse);
 
   while (true) {
     stdout.writeln('\n=== CAMPO MINADO ===');
@@ -10,39 +15,38 @@ void main(){
     stdout.writeln('- abrir:  a LINHA COLUNA   (ex: a 3 5)');
     stdout.writeln('- flag:   f LINHA COLUNA   (ex: f 3 5)');
     stdout.writeln('- sair:   s');
-    stdout.writeln('');
 
     tabuleiro.printTabuleiro();
 
     if (tabuleiro.jogoAcabou) {
-      stdout.writeln('\nVocê perdeu. (bomba)');
+      stdout.writeln('\n Você perdeu! Acertou uma bomba.');
       break;
     }
 
     if (tabuleiro.venceu) {
-      stdout.writeln('\nVocê venceu! (todas as casas seguras abertas)');
+      stdout.writeln('\n Parabéns! Você Ganhou!');
       break;
     }
 
     stdout.write('\n> ');
     final entrada = stdin.readLineSync();
-    if (entrada == null) continue;
+    if (entrada == null || entrada.isEmpty) continue;
 
     final partes = entrada.trim().split(RegExp(r'\s+'));
-    if (partes.isEmpty) continue;
-
     final comando = partes[0].toLowerCase();
+
     if (comando == 's') break;
 
     if (partes.length < 3) {
-      stdout.writeln('Entrada inválida. Ex: a 3 5  ou  f 3 5');
+      stdout.writeln('Entrada inválida. Ex: a 3 5 ou f 3 5');
       continue;
     }
 
     final linha = int.tryParse(partes[1]);
     final coluna = int.tryParse(partes[2]);
+
     if (linha == null || coluna == null) {
-      stdout.writeln('Linha/coluna inválidas.');
+      stdout.writeln('Linha/coluna devem ser números.');
       continue;
     }
 
@@ -50,7 +54,7 @@ void main(){
     final j = coluna - 1;
 
     if (!tabuleiro.dentro(i, j)) {
-      stdout.writeln('Fora do tabuleiro.');
+      stdout.writeln('Coordenadas fora do tabuleiro.');
       continue;
     }
 
@@ -64,56 +68,64 @@ void main(){
   }
 }
 
-class Casa{
-  final int? bomba;
-  int flag = 0;
+class Casa {
+  int bomba = 0; // 0 para seguro, 1 para bomba
+  int flag = 0; // 0 para sem flag, 1 para com flag
   bool aberta = false;
-  String casa = "⬜";
-  String casaBomba = "💣";
-  String casaFlag = "🚩";
+  String visual = "⬜";
 
-  Casa(this.bomba, this.flag);
+  static const String casaBomba = "💣";
+  static const String casaFlag = "🚩";
 
   @override
-  String toString(){
-    if (!aberta && flag == 1) {
-      return casaFlag;
+  String toString() {
+    if (!aberta) {
+      return (flag == 1) ? casaFlag : visual;
     }
-
-    if (!aberta) return casa;
-
-    return casa;
+    return visual; // Se aberta, mostra o conteúdo atualizado (número ou vazio)
   }
-
 }
 
-class Tabuleiro{
-  final int tamanho;
-
-  List<List<Casa>> tabuleiro = [];
+class Tabuleiro {
+  late int tamanho;
+  late int quantBomba;
+  List<List<Casa>> grade = [];
   bool jogoAcabou = false;
-  final int quantBomba;
   bool _bombasGeradas = false;
+
   bool get jogoFinalizado => jogoAcabou || venceu;
 
-  Tabuleiro(this.tamanho) : quantBomba = ((tamanho * tamanho) * 0.30) ~/ 1 {
-    for (var i = 0; i < tamanho; i++) {
-      final linha = <Casa>[];
-      for (var j = 0; j < tamanho; j++) {
-        linha.add(Casa(0, 0));
-      }
-      tabuleiro.add(linha);
+  Tabuleiro(int? escolha) {
+    // Definir tamanho com base na dificuldade
+    switch (escolha) {
+      case 1: tamanho = 8; break;
+      case 2: tamanho = 12; break;
+      case 3: tamanho = 16; break;
+      case 4:
+        stdout.write("Digite o tamanho personalizado (ex: 10): ");
+        tamanho = int.tryParse(stdin.readLineSync() ?? '8') ?? 8;
+        break;
+      default:
+        print("Opção inválida. Iniciando no Fácil.");
+        tamanho = 8;
     }
 
+    // Define quantidade de bombas (aprox 15% do mapa para não ser impossível)
+    quantBomba = (tamanho * tamanho * 0.15).toInt();
+    if (quantBomba < 1) quantBomba = 1;
+
+    // Inicializa a grade com casas vazias
+    for (var i = 0; i < tamanho; i++) {
+      grade.add(List.generate(tamanho, (_) => Casa()));
+    }
   }
 
   bool get venceu {
     if (jogoAcabou) return false;
-
     for (var i = 0; i < tamanho; i++) {
       for (var j = 0; j < tamanho; j++) {
-        final c = tabuleiro[i][j];
-        if ((c.bomba ?? 0) == 0 && !c.aberta) return false;
+        // Se existe uma casa sem bomba que não foi aberta, ainda não venceu
+        if (grade[i][j].bomba == 0 && !grade[i][j].aberta) return false;
       }
     }
     return true;
@@ -121,28 +133,22 @@ class Tabuleiro{
 
   bool dentro(int i, int j) => i >= 0 && i < tamanho && j >= 0 && j < tamanho;
 
-  bool _naAreaSeguraPrimeiroClique(int i, int j, int si, int sj) {
-    return (i - si).abs() <= 1 && (j - sj).abs() <= 1;
-  }
-
   void _gerarBombas(int si, int sj) {
-    if (_bombasGeradas) return;
-
     final random = Random();
     int colocadas = 0;
 
     while (colocadas < quantBomba) {
-      final i = random.nextInt(tamanho);
-      final j = random.nextInt(tamanho);
+      int i = random.nextInt(tamanho);
+      int j = random.nextInt(tamanho);
 
-      if (_naAreaSeguraPrimeiroClique(i, j, si, sj)) continue;
-      final c = tabuleiro[i][j];
-      if ((c.bomba ?? 0) == 1) continue;
-
-      tabuleiro[i][j] = Casa(1, 0);
-      colocadas++;
+      // Não coloca bomba onde o usuário clicou pela primeira vez (raio de 1)
+      bool areaSegura = (i - si).abs() <= 1 && (j - sj).abs() <= 1;
+      
+      if (!areaSegura && grade[i][j].bomba == 0) {
+        grade[i][j].bomba = 1;
+        colocadas++;
+      }
     }
-
     _bombasGeradas = true;
   }
 
@@ -150,113 +156,78 @@ class Tabuleiro{
     int total = 0;
     for (var di = -1; di <= 1; di++) {
       for (var dj = -1; dj <= 1; dj++) {
-        if (di == 0 && dj == 0) continue;
-        final ni = i + di;
-        final nj = j + dj;
-        if (!dentro(ni, nj)) continue;
-        if ((tabuleiro[ni][nj].bomba ?? 0) == 1) total++;
+        int ni = i + di;
+        int nj = j + dj;
+        if (dentro(ni, nj) && grade[ni][nj].bomba == 1) total++;
       }
     }
     return total;
   }
 
-  void revelarBombas() {
-    for (var i = 0; i < tamanho; i++) {
-      for (var j = 0; j < tamanho; j++) {
-        final c = tabuleiro[i][j];
-        if ((c.bomba ?? 0) == 1) {
-          c.aberta = true;
-          c.casa = c.casaBomba;
-        }
-      }
-    }
-  }
-
-  void alternarFlag(int i, int j) {
-    if (jogoFinalizado) return;
-    final c = tabuleiro[i][j];
-    if (c.aberta) return;
-    c.flag = (c.flag == 1) ? 0 : 1;
-  }
-
   void abrir(int i, int j) {
-    if (jogoFinalizado) return;
+    if (jogoFinalizado || grade[i][j].aberta || grade[i][j].flag == 1) return;
 
-    if (!_bombasGeradas) {
-      _gerarBombas(i, j);
-    }
+    if (!_bombasGeradas) _gerarBombas(i, j);
 
-    final inicio = tabuleiro[i][j];
-    if (inicio.aberta) return;
-    if (inicio.flag == 1) return;
-
-    if ((inicio.bomba ?? 0) == 1) {
+    if (grade[i][j].bomba == 1) {
       jogoAcabou = true;
-      revelarBombas();
+      _revelarTudo();
       return;
     }
 
-    final fila = <List<int>>[];
-    fila.add([i, j]);
-
+    // Algoritmo de expansão (Flood Fill)
+    List<List<int>> fila = [[i, j]];
     while (fila.isNotEmpty) {
-      final atual = fila.removeLast();
-      final ci = atual[0];
-      final cj = atual[1];
-      if (!dentro(ci, cj)) continue;
+      var pos = fila.removeLast();
+      int ci = pos[0];
+      int cj = pos[1];
 
-      final c = tabuleiro[ci][cj];
-      if (c.aberta) continue;
-      if (c.flag == 1) continue;
-      if ((c.bomba ?? 0) == 1) continue;
+      if (!dentro(ci, cj) || grade[ci][cj].aberta || grade[ci][cj].flag == 1) continue;
 
-      final n = bombasAoRedor(ci, cj);
-      c.aberta = true;
-      if (n == 0) {
-        c.casa = "  ";
-      } else {
-        c.casa = n.toString().padLeft(2, ' ');
-      }
+      int n = bombasAoRedor(ci, cj);
+      grade[ci][cj].aberta = true;
+      grade[ci][cj].visual = n == 0 ? "  " : " $n";
 
       if (n == 0) {
         for (var di = -1; di <= 1; di++) {
           for (var dj = -1; dj <= 1; dj++) {
-            if (di == 0 && dj == 0) continue;
-            final ni = ci + di;
-            final nj = cj + dj;
-            if (dentro(ni, nj)) fila.add([ni, nj]);
+            if (di != 0 || dj != 0) fila.add([ci + di, cj + dj]);
           }
         }
       }
     }
   }
 
-  void printTabuleiro(){
-    stdout.write('   ');
-    for (var a = 0; a < tamanho; a++) {
-      final coluna = (a + 1).toString().padLeft(2, ' ');
-      stdout.write('$coluna ');
-    }
-    stdout.write('\n');
-
-    for (var i = 0; i < this.tamanho; i++) {
-      int linha = i+1;
-
-      for (var j = 0; j < this.tamanho; j++) {
-        final cell = this.tabuleiro[i][j].toString();
-        stdout.write(cell.padLeft(2, ' '));
-        stdout.write(' ');
-
-      }
-
-      stdout.write("-$linha");
-      stdout.write('\n');
+  void alternarFlag(int i, int j) {
+    if (!grade[i][j].aberta) {
+      grade[i][j].flag = (grade[i][j].flag == 1) ? 0 : 1;
     }
   }
 
-  @override
-    String toString(){
-      return tabuleiro.map((linha) => linha.join(' ')).join('\n');
+  void _revelarTudo() {
+    for (var i = 0; i < tamanho; i++) {
+      for (var j = 0; j < tamanho; j++) {
+        if (grade[i][j].bomba == 1) {
+          grade[i][j].aberta = true;
+          grade[i][j].visual = Casa.casaBomba;
+        }
+      }
     }
+  }
 
+  void printTabuleiro() {
+    stdout.write('   ');
+    for (var i = 0; i < tamanho; i++) {
+      stdout.write((i + 1).toString().padLeft(2, ' ') + ' ');
+    }
+    stdout.writeln();
+
+    for (var i = 0; i < tamanho; i++) {
+      stdout.write((i + 1).toString().padLeft(2, ' ') + ' ');
+      for (var j = 0; j < tamanho; j++) {
+        stdout.write('${grade[i][j]} ');
+      }
+      stdout.writeln();
+    }
+  }
 }
